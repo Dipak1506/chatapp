@@ -1,0 +1,58 @@
+.sidebar-chats .item.unread {
+    background-color: #e6f7ff;
+}
+
+.sidebar-chats .last-message {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-chats .unread-indicator {
+    background-color: #1890ff;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 9px;
+    font-size: 0.8em;
+    margin-left: 5px;
+}
+
+.sidebar-chats .item {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f2f5;
+
+    .img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .texts {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+
+        .texts-inner {
+            display: flex;
+            justify-content: space-between;
+        }
+
+     
+        .side-msg {
+            font-size: small;
+        }
+
+        .side-username {
+            font-weight: 500;
+        }
+
+        .side-time{
+            font-size: small;
+        }
+    }
+}

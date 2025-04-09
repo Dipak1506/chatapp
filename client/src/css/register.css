@@ -1,0 +1,92 @@
+.register{
+  display: flex;
+  align-items: center;
+}
+
+
+.wrapper{
+  background-color: f7f7f7;
+  max-height: 95vh;
+}
+
+.right input{
+  margin-bottom: 10px;
+  border: none;
+  outline: none;
+  border-radius: 5px;
+}
+
+.register-inputss{
+  color: red;
+}
+
+.warning{
+  cursor: pointer;
+}
+
+.register-inputs{
+  border: none;
+  outline: none;
+  border-radius: 5px;
+  margin: 10px;
+  padding: 15px;
+  background-color: aqua;
+}
+
+
+@media only screen and (max-width: 768px) {
+  .wrapper {
+    max-width: 90%;
+    padding: 10px;
+  }
+  .loginButton {
+    width: 100%;
+    padding: 10px 15px;
+  }
+  .right input {
+    width: 100%;
+    padding: 10px 15px;
+  }
+  .submit {
+    width: 100%;
+    padding: 10px 15px;
+  }
+}
+
+@media only screen and (min-width: 769px) and (max-width: 1024px) {
+  .wrapper {
+    max-width: 80%;
+    padding: 15px;
+  }
+  .loginButton {
+    width: 120px;
+    padding: 15px 20px;
+  }
+  .right input {
+    width: 180px;
+    padding: 15px 20px;
+  }
+  .submit {
+    width: 180px;
+    padding: 15px 20px;
+  }
+}
+
+@media only screen and (min-width: 1025px) {
+  .wrapper {
+    max-width: 70%;
+    padding: 20px;
+  }
+  .loginButton {
+    width: 150px;
+    padding: 15px 25px;
+  }
+  .right input {
+    width: 200px;
+    padding: 10px 25px;
+  }
+  .submit {
+    width: 200px;
+    padding: 15px 25px;
+  }
+}

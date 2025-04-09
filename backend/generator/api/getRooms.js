@@ -1,0 +1,23 @@
+const express = require('express');
+const router = express.Router();
+const connection = require("./database")
+
+router.get('/', (req, res) => {
+    let selectQuery = "select * from rooms";
+
+    try {
+        connection.query(selectQuery, (err, data) => {
+            if(err){
+                res.send({status: 201, msg: "Error getting rooms"});
+            } else {
+                res.send({status: 200, data: data});
+               // console.log(data);
+            }
+        })
+    }
+    catch (error) {
+        res.send({ status: "error" });
+    };
+})
+
+module.exports = router;
