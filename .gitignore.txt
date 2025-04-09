@@ -25,4 +25,9 @@ yarn-debug.log*
 yarn-error.log*
 
 .env
-
+backend/generator/postgres-data/
+backend/generator/bin/
+backend/generator/views/
+backend/generator/public/
+backend/generator/uploads/
+backend/generator/package-lock.json
