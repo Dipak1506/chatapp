@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+    db:
+        container_name: db
+        image: postgres:15
+        restart: always
+        environment:
+            POSTGRES_USER: root
+            POSTGRES_PASSWORD: root
+            POSTGRES_DB: db
+        volumes: 
+            - ./postgres-data:/var/lib/postgresql/data
+        ports:
+            - "5432:5432"
+
+    pgadmin:
+         
+        image: dpage/pgadmin4
+        restart: always
+        environment: 
+            PGADMIN_DEFAULT_EMAIL: dipakdg1506@gmail.com 
+            PGADMIN_DEFAULT_PASSWORD: root
+        ports: 
+            - "8080:80"
+        depends_on:
+            - db
+
+    
