@@ -31,3 +31,4 @@ backend/generator/views/
 backend/generator/public/
 backend/generator/uploads/
 backend/generator/package-lock.json
+backend/generator/.env
