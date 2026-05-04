@@ -1,25 +1,32 @@
-import React, { createContext, useContext, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 
-const SocketContext = createContext();
+const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children }) => {
-    const socket = useRef();
+    
+    const [socket] = useState(() => io('http://localhost:5500', {
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+    }));
 
     useEffect(() => {
-        socket.current = io('http://localhost:5500');
         return () => {
-            socket.current.disconnect();
+            // socket.disconnect();
         };
-    }, []);
+    }, [socket]);
 
     return (
-        <SocketContext.Provider value={socket.current}>
+        <SocketContext.Provider value={socket}>
             {children}
         </SocketContext.Provider>
     );
 };
 
 export const useSocket = () => {
-    return useContext(SocketContext);
+    const socket = useContext(SocketContext);
+    if (!socket) throw new Error('useSocket must be used inside <SocketProvider>');
+    return socket;
 };

@@ -3,7 +3,7 @@ const connection = require('./database');
 const router = require('express').Router();
 
 router.get('/', async (req, res) => {
-  
+
     try {
       let selectQuery = "select * from groups";
 

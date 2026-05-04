@@ -1,5 +1,7 @@
+require('dotenv').config(); 
+
 const express = require('express');
-const PORT = 5500;
+const PORT = process.env.PORT;
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const cors = require('cors')
@@ -20,6 +22,7 @@ app.use(cors({
 
 
 app.use(session({
+  secret:process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -32,6 +35,8 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(express.json());
+
+app.use('/uploads', express.static('uploads'))
 
 const io = initializeSocket(server);
 
@@ -78,9 +83,6 @@ app.use("/lastMessages", lastMsgRoute);
 const markAsreadRoute = require("./api/markAsRead");
 app.use("/markAsRead", markAsreadRoute);
  
-
-
-
 app.get("/welcome", async (req, res, next) => {
   res.json({
     message: "welcome",

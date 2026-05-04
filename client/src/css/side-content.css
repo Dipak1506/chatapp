@@ -3,8 +3,8 @@
     flex: 1;
     overflow: auto;
     scrollbar-width: thin;
-
-
+    display: flex;
+    flex-direction: column;
 
     .avatar-container {
         display: flex;
@@ -12,6 +12,7 @@
         justify-content: center;
         gap: 15px;
         padding: 10px;
+        font-weight: 500;
     }
 
     .header {
@@ -21,21 +22,23 @@
         width: 100%;
         height: 10vh;
         background-color: #f0f2f5;
+        flex-shrink: 0;
     }
-
 
     .icons {
         display: flex;
         gap: 10px;
         justify-content: center;
         align-items: center;
+        padding-right: 16px;
+        cursor: pointer;
     }
 
     .dropdown-content {
         position: absolute;
         top: 63px;
         left: 175px;
-        z-index: 1;
+        z-index: 10;
         background-color: #ffffff;
         box-shadow: rgba(11, 20, 26, 0.26) 0px 2px 5px 0px, rgba(11, 20, 26, 0.16) 0px 2px 10px 0px;
         border-radius: 3px;
@@ -43,11 +46,16 @@
         padding: 10px 10px 5px 10px;
         font-size: 16px;
         line-height: 16px;
-
     }
 
     .dropdown-content p {
         cursor: pointer;
+        padding: 8px 16px;
+        margin: 0;
+        border-radius: 4px;
+    }
+    .dropdown-content p:hover {
+        background-color: #f0f2f5;
     }
 
     .search {
@@ -55,77 +63,178 @@
         align-items: center;
         gap: 20px;
         padding: 10px;
+        flex-shrink: 0;
 
         .searchbar {
             flex: 1;
             background-color: #f0f2f5;
             display: flex;
             align-items: center;
-            /* justify-content: center; */
-            gap: 20px;
+            gap: 12px;
             border-radius: 10px;
-            padding: 5px;
-
-
+            padding: 5px 12px;
 
             .searchInput {
                 background-color: transparent;
                 border: none;
                 outline: none;
-                /* color: white; */
                 flex: 1;
-                height: 5vh;
-                padding: 10px;
+                height: 36px;
+                font-size: 14px;
             }
-
-            img {
-                width: 20px;
-                height: 20px;
-            }
-        }
-
-        .add {
-            width: 36px;
-            height: 36px;
-            padding: 0;
-            cursor: pointer;
         }
     }
 
-    
+    /* ── Group Chat Creation (redesigned) ── */
+    .group-chat-creation {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .group-creation-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background-color: #008069;
+        color: white;
+
+        h5 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+    }
+
+    .back-btn {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.15); }
+
+    .group-name-input {
+        margin: 12px 16px;
+        padding: 10px 14px;
+        border: none;
+        border-bottom: 2px solid #008069;
+        outline: none;
+        font-size: 16px;
+        background: transparent;
+        color: #111;
+        flex-shrink: 0;
+    }
+    .group-name-input::placeholder { color: #aaa; }
+
+    .select-label {
+        padding: 6px 16px 4px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #008069;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    .selected-members {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px 16px;
+        border-bottom: 1px solid #f0f2f5;
+        flex-shrink: 0;
+    }
+
+    .member-chip {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        border-radius: 20px;
+        padding: 4px 10px;
+        font-size: 13px;
+        font-weight: 500;
+
+        svg {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        svg:hover { opacity: 1; }
+    }
+
+    .user-list {
+        flex: 1;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
     .user-selection {
         display: flex;
-        padding: 5px;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background 0.15s;
+        border-bottom: 1px solid #f5f5f5;
+
+        .user-sel-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .user-sel-name {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .check-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background-color: #008069;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
     }
 
-    .group-chat-creation {
-       text-align: center;
-       padding: 10px;
+    .user-selection:hover { background-color: #f0f2f5; }
+    .user-selection.selected { background-color: #f0faf5; }
+
+    .create-group-btn {
+        margin: 12px 16px;
+        padding: 12px;
+        border-radius: 24px;
+        background-color: #008069;
+        color: white;
+        border: none;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: background 0.2s, opacity 0.2s;
+        flex-shrink: 0;
     }
-
-    .user-selection span {
-        margin-left: 10px;
-    }
-
-    .create-group-btn{
-        margin-top: 10px;
-        padding: 5px;
-        border-radius: 10px;
-        background-color: #f0f2f5;
-        color: black;
-    }
-
-    .create-group-btn:hover {
-        color: black;
-        background-color: #fff;
-    }
-
-    .chkbox{
-        width: 18px;
-        margin-right: 10px;
-        margin-left: 35px;
-    }
-    
-
-
+    .create-group-btn:hover:not(:disabled) { background-color: #006e5a; }
+    .create-group-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 }

@@ -26,7 +26,14 @@ const Login = (props) => {
     
   }
 
+    
+
   const handleSignIn = async () => {
+
+    console.log("clickedd",props.user,password);
+
+  
+    
     
     if (!props.user) {
       setPassError("Please enter valid username");
@@ -35,7 +42,10 @@ const Login = (props) => {
       setPassError("Password is required");
     }
     else {
+    
+      
       await apiConfig.get('/signin',
+        
         {
           params: {
             username: props.user,
@@ -53,7 +63,8 @@ const Login = (props) => {
            toast.success("Hello...  " + response.data.data[0].username);
            props.setUserId(response.data.data[0].id)
 
-           socket.emit('join_room', { username: props.user, room: props.user  })
+          //  socket.emit('join_room', { username: props.user, room: props.user  })
+          socket.emit('joinRoom', props.user);
           } else if (response.data.status === 201) {
             setSignInError(response.data.msg);
             toast.warning("Enter Valid Details...")
@@ -69,7 +80,7 @@ const Login = (props) => {
   };
 
   const google = () => {
-    window.open("http://localhost:55000/auth/google", "_self");
+    window.open("http://localhost:5500/auth/google", "_self");
 };
 
 

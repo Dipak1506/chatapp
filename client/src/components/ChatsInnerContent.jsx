@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import "../css/chatInner.css";
-import { Crosshair, Edit, Info, Lock, Mic, Phone, Plus, Send, Smile, Video } from 'react-feather';
+import { Info, Lock, Mic, Phone, PhoneOff, Plus, Send, Smile, Video, VideoOff } from 'react-feather';
 import EmojiPicker from 'emoji-picker-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCamera, faCircleXmark, faFile, faPhotoFilm } from '@fortawesome/free-solid-svg-icons';
@@ -8,446 +8,355 @@ import { useSocket } from '../utils/SocketContext';
 import AvatarComponent from '../utils/Avatar';
 import apiConfig from '../utils/apiConfig';
 import { faPenToSquare } from '@fortawesome/free-regular-svg-icons';
-import AudioCall from './AudioCall';
 import Peer from 'simple-peer';
 import { toast } from 'react-toastify';
+import { formatTime } from '../utils/comman';
 
-const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomId, messages,
-                             setMessages, isgroup, onGroupNameUpdate }) => {
+const CALL_STATUS = {
+  IDLE: 'idle', CALLING: 'calling', INCOMING: 'incoming', IN_CALL: 'in-call',
+};
+
+const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomId,
+  messages, setMessages, isgroup, onGroupNameUpdate }) => {
   const img = require("../Assets/wa669aeJeom.png");
   const socket = useSocket();
 
-  const [isTyping, setIsTyping] = useState(false);
-  const [emoji, setEmoji] = useState(true);
-  const [text, setText] = useState("");
+  const [isTyping, setIsTyping]     = useState(false);
+  const [emoji, setEmoji]           = useState(true);
+  const [text, setText]             = useState("");
   const [plusDropdown, setPlusDropdown] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [image, setImage] = useState(null);
+  const [image, setImage]           = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [changeName, setChangename] = useState(false);
   const [newGroupname, setNewgroupName] = useState("");
 
-  const [isCallActive, setIsCallActive] = useState(false);
+  // ── Call state ────────────────────────────────────────────
+  const [callStatus, setCallStatus] = useState(CALL_STATUS.IDLE);
+  const [callType, setCallType]     = useState('audio');   // ← NEW 'audio'|'video'
+  const [stream, setStream]         = useState(null);
+  const [callerInfo, setCallerInfo] = useState(null);
 
-  const [stream, setStream] = useState();
-  const [receivingCall, setReceivingCall] = useState(false);
-  const [caller, setCaller] = useState("");
-  const [callerSignal, setCallerSignal] = useState();
-  const [callAccepted, setCallAccepted] = useState(false);
-  const myAudio = useRef();
-  const userAudio = useRef();
+  const myAudio      = useRef();   // hidden audio
+  const userAudio    = useRef();   // remote audio
+  const myVideo      = useRef();   // ← NEW local video preview
+  const remoteVideo  = useRef();   // ← NEW remote video stream
   const connectionRef = useRef();
+  const streamRef    = useRef(null);
 
   const fileInputRefDocument = useRef(null);
-  const fileInputRefPhoto = useRef(null);
-  const inputRef = useRef(null);
-  const videoRef = useRef(null);
+  const fileInputRefPhoto    = useRef(null);
+  const videoRef             = useRef(null); // camera-capture
 
-  const getCurrentTime = () => {
-    const now = new Date();
-    const options = { hour: '2-digit', minute: '2-digit' };
-    return now.toLocaleTimeString([], options);
-  };
+  // Register socket
+  useEffect(() => {
+    if (userId) socket.emit('registerUser', userId);
+  }, [userId, socket]);
 
-  const formatTime = (time24) => {
-
-    if (!time24) {
-      return '';
-    }
-
-    const [hours, minutes, seconds] = time24.split(':');
-    let formattedTime = '';
-
-    let hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    hour = hour % 12;
-    hour = hour ? hour : 12;
-    formattedTime = `${hour}:${minutes} ${ampm}`;
-
-    return formattedTime;
-  };
-
+  // Acquire mic + bind call event handlers
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: false, audio: true })
-      .then((currentStream) => {
-        setStream(currentStream);
-        if (myAudio.current) {
-          myAudio.current.srcObject = currentStream;
-        }
-      })
-      .catch((error) => {
-        console.error("Error accessing media devices.", error.name, error.message);
-      });
+      .then((s) => { setStream(s); streamRef.current = s; if (myAudio.current) myAudio.current.srcObject = s; })
+      .catch((err) => console.warn("Mic access denied:", err.message));
 
+    const handleIncomingCall = ({ signal, from, callerName, callType: ct }) => {
+      setCallerInfo({ signal, from, callerName, callType: ct || 'audio' });
+      setCallType(ct || 'audio');
+      setCallStatus(CALL_STATUS.INCOMING);
+    };
+    const handleCallAccepted    = (signal) => { setCallStatus(CALL_STATUS.IN_CALL); if (connectionRef.current) connectionRef.current.signal(signal); };
+    const handleCallRejected    = () => { toast.info("Call was declined."); cleanupCall(); };
+    const handleCallEnded       = () => { toast.info("Call ended."); cleanupCall(); };
+    const handleCallUnavailable = () => { toast.warning("User is not available right now."); cleanupCall(); };
 
-    socket.on("hey", (data) => {
-      setReceivingCall(true);
-      setCaller(data.from);
-      setCallerSignal(data.signal);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (room) {
-      socket.emit('joinRoom', room);
-    }
-
-    socket.on('receiveMessage', (message) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
-    });
+    socket.on('incomingCall',    handleIncomingCall);
+    socket.on('callAccepted',    handleCallAccepted);
+    socket.on('callRejected',    handleCallRejected);
+    socket.on('callEnded',       handleCallEnded);
+    socket.on('callUnavailable', handleCallUnavailable);
 
     return () => {
-      socket.off('receiveMessage');
+      socket.off('incomingCall',    handleIncomingCall);
+      socket.off('callAccepted',    handleCallAccepted);
+      socket.off('callRejected',    handleCallRejected);
+      socket.off('callEnded',       handleCallEnded);
+      socket.off('callUnavailable', handleCallUnavailable);
     };
+  }, [socket]);
+
+  // Bind local stream to the <video> PiP once video call starts
+  useEffect(() => {                                         // ← NEW
+    if (callType === 'video' && streamRef.current && myVideo.current) {
+      myVideo.current.srcObject = streamRef.current;
+    }
+  }, [callType, callStatus]);
+
+  // Join room
+  useEffect(() => {
+    if (room) socket.emit('joinRoom', room);
+    const handleMessage = (msg) => setMessages((prev) => [...prev, msg]);
+    socket.on('receiveMessage', handleMessage);
+    return () => socket.off('receiveMessage', handleMessage);
   }, [room, socket]);
 
-  const callUser = (id) => {
-    const peer = new Peer({
-      initiator: true,
-      trickle: false,
-      stream: stream
-    });
-
-    peer.on("signal", (data) => {
-      socket.emit("callUser", {
-        userToCall: id,
-        signalData: data,
-        from: userId
-      });
-    });
-
-    peer.on("stream", (currentStream) => {
-      if (userAudio.current) {
-        userAudio.current.srcObject = currentStream;
-      }
-    });
-
-    socket.on("callAccepted", (signal) => {
-      setCallAccepted(true);
-      peer.signal(signal);
-    });
-
-    connectionRef.current = peer;
+  // ── Call helpers ─────────────────────────────────────────
+  const cleanupCall = () => {
+    if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
+    if (streamRef.current) streamRef.current.getVideoTracks().forEach(t => t.stop());
+    if (myVideo.current)     myVideo.current.srcObject     = null;
+    if (remoteVideo.current) remoteVideo.current.srcObject = null;
+    if (userAudio.current)   userAudio.current.srcObject   = null;
+    setCallStatus(CALL_STATUS.IDLE); setCallerInfo(null); setCallType('audio');
   };
 
-  const answerCall = () => {
-    setCallAccepted(true);
-    const peer = new Peer({
-      initiator: false,
-      trickle: false,
-      stream: stream
-    });
-
-    peer.on("signal", (data) => {
-      socket.emit("acceptCall", { signal: data, to: caller });
-    });
-
-    peer.on("stream", (currentStream) => {
-      if (userAudio.current) {
-        userAudio.current.srcObject = currentStream;
-      }
-    });
-
-    peer.signal(callerSignal);
-    connectionRef.current = peer;
+  const getMediaStream = async (type) => {           // ← NEW helper
+    const constraints = type === 'video'
+      ? { audio: true, video: { width: 640, height: 480 } }
+      : { audio: true, video: false };
+    const s = await navigator.mediaDevices.getUserMedia(constraints);
+    setStream(s); streamRef.current = s;
+    return s;
   };
 
-  const leaveCall = () => {
-    setCallAccepted(false);
-    setReceivingCall(false);
-    connectionRef.current.destroy();
-  };
+  const callUser = async (type = 'audio') => {       // ← CHANGED: accepts type
+    if (!receiverId) return;
+    setCallType(type);
+    setCallStatus(CALL_STATUS.CALLING);
 
-
-
-
-  const sendMessage = async () => {
-    if (text.trim() || selectedFile) {
-      // const message = { user, text, file: null };
-      const message = { user, text, file: selectedFile ? selectedFile : null };
-
-      socket.emit('sendMessage', { room, message });
-
-      setText("");
-      setSelectedFile(null);
-      setIsTyping(false);
-
-      try {
-        await apiConfig.get('/savemessages', {
-          params: {
-            sender_id: userId,
-            receiver_id: receiverId,
-            room_id: roomId,
-            messages: text,
-            isread: false
-          }
-        });
-      } catch (error) {
-        console.error('Error saving message:', error);
-      }
+    let activeStream;
+    try { activeStream = await getMediaStream(type); }
+    catch (err) {
+      toast.error(`Could not access ${type === 'video' ? 'camera/microphone' : 'microphone'}.`);
+      setCallStatus(CALL_STATUS.IDLE); return;
     }
+
+    const peer = new Peer({ initiator: true, trickle: false, stream: activeStream });
+
+    peer.on('signal', (data) => {
+      socket.emit('callUser', { userToCall: receiverId, signalData: data, from: userId, callerName: user, callType: type }); // ← callType forwarded
+    });
+    peer.on('stream', (remoteStream) => {
+      if (type === 'video' && remoteVideo.current) remoteVideo.current.srcObject = remoteStream;
+      else if (userAudio.current) userAudio.current.srcObject = remoteStream;
+    });
+    peer.on('error', (err) => { console.error(err); cleanupCall(); });
+    connectionRef.current = peer;
   };
 
-  const handleEmoji = (e) => {
-    setText((prev) => prev + e.emoji);
+  const answerCall = async () => {
+    const type = callerInfo?.callType || 'audio';
+    setCallType(type); setCallStatus(CALL_STATUS.IN_CALL);
+
+    let activeStream;
+    try { activeStream = await getMediaStream(type); }
+    catch (err) { toast.error(`Could not access ${type === 'video' ? 'camera/microphone' : 'microphone'}.`); cleanupCall(); return; }
+
+    const peer = new Peer({ initiator: false, trickle: false, stream: activeStream });
+    peer.on('signal', (data) => socket.emit('answerCall', { signal: data, to: callerInfo.from }));
+    peer.on('stream', (remoteStream) => {
+      if (type === 'video' && remoteVideo.current) remoteVideo.current.srcObject = remoteStream;
+      else if (userAudio.current) userAudio.current.srcObject = remoteStream;
+    });
+    peer.on('error', (err) => { console.error(err); cleanupCall(); });
+    peer.signal(callerInfo.signal);
+    connectionRef.current = peer;
   };
 
+  const rejectCall  = () => { socket.emit('rejectCall', { to: callerInfo.from }); cleanupCall(); };
+  const endCall     = () => { socket.emit('endCall', { to: callerInfo ? callerInfo.from : receiverId }); cleanupCall(); toast.info("Call ended."); };
+  const cancelCall  = () => { socket.emit('endCall', { to: receiverId }); cleanupCall(); };
+
+  // ── Messaging (unchanged) ─────────────────────────────────
+  const sendMessage = async (fileUrl = null) => {
+    const messageContent = fileUrl || text.trim();
+    if (!messageContent) return;
+    if (!fileUrl) { setText(""); setIsTyping(false); }
+    setSelectedFile(null);
+    try {
+      const response = await apiConfig.post('/savemessages', { sender_id: userId, receiver_id: receiverId, room_id: roomId, messages: messageContent, is_read: false });
+      const message_time = response.data.message_time;
+      const socketMessage = fileUrl ? { user, text: null, file: fileUrl, message_time } : { user, text, file: null, message_time };
+      socket.emit('sendMessage', { room, message: socketMessage });
+    } catch (error) { console.error('Error saving message:', error); }
+  };
+
+  const handleEmoji = (e) => setText((prev) => prev + e.emoji);
+  const handleClick = (ref) => { if (ref.current) ref.current.click(); };
   const handleFileChange = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-
-      const formData = new FormData();
-      formData.append('image', file);
-
-      apiConfig.post('/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      }).then(response => {
-        setPlusDropdown(false);
-        const imageUrl = response.data.imageUrl;
-        sendMessage(imageUrl);
-      }).catch(error => {
-        console.log('Error uploading file:', error);
-      });
-    }
-  };
-
-  const handleClick = (ref) => {
-    if (ref.current) {
-      ref.current.click();
-    }
+    if (!file) return;
+    setSelectedFile(file);
+    const formData = new FormData();
+    formData.append('image', file);
+    apiConfig.post('/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then(res => { setPlusDropdown(false); sendMessage(res.data.imageUrl); })
+      .catch(() => toast.error("File upload failed"));
+    event.target.value = '';
   };
 
   const startCamera = () => {
-    setEmoji(true);
-    setPlusDropdown(false);
+    setEmoji(true); setPlusDropdown(false);
     navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      })
-      .catch(err => console.error('Error accessing camera:', err));
+      .then(s => { if (videoRef.current) videoRef.current.srcObject = s; })
+      .catch(err => console.error('Camera error:', err));
   };
-
   const closeCamera = () => {
     setShowCamera(false);
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-    }
+    if (videoRef.current?.srcObject) videoRef.current.srcObject.getTracks().forEach(t => t.stop());
   };
-
   const capturePhoto = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-
-      const context = canvas.getContext('2d');
-      context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-
-      const capturedImage = canvas.toDataURL('image/jpeg');
-      setImage(capturedImage);
-      setShowCamera(false);
+      canvas.width = videoRef.current.videoWidth; canvas.height = videoRef.current.videoHeight;
+      canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
+      setImage(canvas.toDataURL('image/jpeg')); setShowCamera(false);
     }
   };
 
-  const getMessageAlignment = (messageUserId) => {
-    if ((messageUserId === parseInt(userId)) || messageUserId === user) {
-      return 'rightchat';
-    } else {
-      return 'leftchat';
-    }
-  };
-
-  const handlePhoneClick = () => {
-    setIsCallActive(true);
-  };
-
-  const endCall = () => {
-    setIsCallActive(false);
-  };
-
-  const handleKeyDown = (e, callback) => {
-    if (e.key === 'Enter') {
-      callback();
-    }
-  }
-
+  const getMessageAlignment = (mid) => mid === parseInt(userId) || mid === user ? 'rightchat' : 'leftchat';
+  const handleKeyDown = (e, cb) => { if (e.key === 'Enter') cb(); };
   const updateName = () => {
-    apiConfig.get("/updatename", {
-      params: {
-        room_id: roomId,
-        new_group_name: newGroupname
-      }
-    })
-      .then(response => {
-        if (response.data.data.rowCount > 0) {
-          onGroupNameUpdate(newGroupname);
-          toast.success("Groupname changed");
-          setChangename(false);
-          setNewgroupName("");
-        }
-      })
-      .catch(err => console.log("Error updating group name:", err)
-      )
-  }
+    apiConfig.get("/updatename", { params: { room_id: roomId, new_group_name: newGroupname } })
+      .then(res => { if (res.data.data.rowCount > 0) { onGroupNameUpdate(newGroupname); toast.success("Group name changed"); setChangename(false); setNewgroupName(""); } })
+      .catch(err => console.error("Error updating group name:", err));
+  };
 
-
+  // ── Render ────────────────────────────────────────────────
   return (
     selectedUser ? (
       <div className='chatInner'>
+        <audio ref={myAudio} autoPlay muted style={{ display: 'none' }} />
+        <audio ref={userAudio} autoPlay style={{ display: 'none' }} />
+
+        {/* Incoming call banner */}
+        {callStatus === CALL_STATUS.INCOMING && callerInfo && (
+          <div className="caller">
+            <p>{callerInfo.callType === 'video' ? '🎥' : '📞'} <strong>{callerInfo.callerName || 'Someone'}</strong> is calling…</p>
+            <button onClick={answerCall}>Answer</button>
+            <button onClick={rejectCall}>Decline</button>
+          </div>
+        )}
+
+        {/* Video call overlay */}
+        {(callStatus === CALL_STATUS.CALLING || callStatus === CALL_STATUS.IN_CALL) && callType === 'video' && (
+          <div className='videoOverlay' style={S.videoOverlay}>
+            <video ref={remoteVideo} autoPlay playsInline style={S.remoteVideo} />
+            <video ref={myVideo}     autoPlay playsInline muted style={S.localVideo} />
+            <div className='videoControls' style={S.videoControls}>
+              <p style={S.callName}>{selectedUser}</p>
+              <p style={S.callSubtext}>{callStatus === CALL_STATUS.CALLING ? 'Calling…' : 'Video call in progress'}</p>
+              <button style={S.endBtn} onClick={callStatus === CALL_STATUS.CALLING ? cancelCall : endCall}>
+                <VideoOff size={20} /> {callStatus === CALL_STATUS.CALLING ? ' Cancel' : ' End Call'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Audio call overlay */}
+        {(callStatus === CALL_STATUS.CALLING || callStatus === CALL_STATUS.IN_CALL) && callType === 'audio' && (
+          <div className='audioOverlay' style={S.audioOverlay}>
+            <AvatarComponent username={selectedUser} />
+            <p style={S.callName}>{selectedUser}</p>
+            <p style={S.callSubtext}>{callStatus === CALL_STATUS.CALLING ? 'Calling…' : 'Call in progress'}</p>
+            <button style={S.endBtn} onClick={callStatus === CALL_STATUS.CALLING ? cancelCall : endCall}>
+              <PhoneOff size={22} /> {callStatus === CALL_STATUS.CALLING ? ' Cancel' : ' End Call'}
+            </button>
+          </div>
+        )}
+
+        {/* Top bar */}
         <div className="top">
           <div className="user">
-            <>
-              <AvatarComponent username={selectedUser} className="Avatar" />
-              <div className="texts">
-                {changeName ?
-                  <input type='text' className='changename-input'
-                    onChange={(e) => setNewgroupName(e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, updateName)}
-                  />
-                  :
-                  <span className='user'>{selectedUser}</span>
-                }
-
-                {isgroup ? <FontAwesomeIcon
-                  icon={faPenToSquare}
-                  style={{ color: "#777879" }}
-                  onClick={() => setChangename(true)} /> : ""}
-              </div>
-            </>
+            <AvatarComponent username={selectedUser} className="Avatar" />
+            <div className="texts">
+              {changeName
+                ? <input type='text' className='changename-input' onChange={(e) => setNewgroupName(e.target.value)} onKeyDown={(e) => handleKeyDown(e, updateName)} />
+                : <span className='user'>{selectedUser}</span>
+              }
+              {isgroup && <FontAwesomeIcon icon={faPenToSquare} style={{ color: "#777879", cursor: 'pointer' }} onClick={() => setChangename(true)} />}
+            </div>
           </div>
           <div className="icons">
-            <Phone onClick={() => callUser(receiverId)} />
-            {receivingCall && !callAccepted ? (
-              <div className="caller">
-                <h1>{caller} is calling...</h1>
-                <button onClick={answerCall}>Answer</button>
-              </div>
-            ) : null}
-            <Video />
+            <Phone  title="Audio Call" style={{ cursor: 'pointer', color: callStatus !== CALL_STATUS.IDLE ? '#25D366' : undefined }} onClick={() => callStatus === CALL_STATUS.IDLE && callUser('audio')} />
+            <Video  title="Video Call" style={{ cursor: 'pointer', color: callStatus !== CALL_STATUS.IDLE ? '#25D366' : undefined }} onClick={() => callStatus === CALL_STATUS.IDLE && callUser('video')} />
             <Info />
           </div>
         </div>
-        {isCallActive ? (
-          <div className="callContainer">
-            <AudioCall
-              userId={userId}
-              partnerId={receiverId}
-              onEndCall={endCall}
-            />
-          </div>
-        ) : (
-          <div className="centerChat" onClick={() => { setIsTyping(false); setPlusDropdown(false); setEmoji(true) }}>
-            {showCamera ?
-              <div className='video-block'>
-                <FontAwesomeIcon className='closeIcon'
-                  icon={faCircleXmark}
-                  style={{ color: "#908989" }}
-                  onClick={() => { closeCamera() }}
-                />
-                <video ref={videoRef} width="100%" height="auto" autoPlay></video>
-                <div className="cameraIcon" onClick={() => capturePhoto()}>
-                  <FontAwesomeIcon className="camera" icon={faCamera} />
-                </div>
-              </div>
-              :
-              <></>}
 
-            {Array.isArray(messages) && messages.slice(0).reverse().map((msg, index) => (
-              <div className={`message ${getMessageAlignment(msg.sender_id ? msg.sender_id : msg.user)}`} key={index}>
-                <div className="message-texts">
-                  {msg.text && <div className='txt'><p >{msg.text}</p></div>}
-                  {msg.messages && <p>{msg.messages}</p>}
-                  {msg.file && (
-                    <div className="file-message">
-                      {msg.file.endsWith('.jpg') || msg.file.endsWith('.jpeg') || msg.file.endsWith('.png') ? (
-                        <img src={msg.file} alt="Image" className="chat-image" />
-                      ) : (
-                        <a href={msg.file} target="_blank" rel="noopener noreferrer">
-                          {msg.file.split('/').pop()}
-                        </a>
-                      )}
-                    </div>
-                  )}
-                  <span className='time'>{msg.message_time ? formatTime(msg.message_time) : getCurrentTime()}</span>
-                </div>
-              </div>
-            ))}
-
-          </div>
-        )}
-        <div className="emoji">
-          {emoji ? <></> : (
-            <EmojiPicker
-              className='picker'
-              onEmojiClick={(e) => handleEmoji(e)}
-            />
+        {/* Messages */}
+        <div className="centerChat" onClick={() => { setIsTyping(false); setPlusDropdown(false); setEmoji(true); }}>
+          {showCamera && (
+            <div className='video-block'>
+              <FontAwesomeIcon className='closeIcon' icon={faCircleXmark} style={{ color: "#908989" }} onClick={closeCamera} />
+              <video ref={videoRef} width="100%" height="auto" autoPlay />
+              <div className="cameraIcon" onClick={capturePhoto}><FontAwesomeIcon className="camera" icon={faCamera} /></div>
+            </div>
           )}
+          {Array.isArray(messages) && messages.slice(0).reverse().map((msg, index) => (
+            <div className={`message ${getMessageAlignment(msg.sender_id ?? msg.user)}`} key={index}>
+              <div className="message-texts">
+                {msg.text     && <div className='txt'><p>{msg.text}</p></div>}
+                {msg.messages && <p>{msg.messages}</p>}
+                {msg.file && (
+                  <div className="file-message">
+                    {/\.(jpg|jpeg|png|gif|webp)$/i.test(msg.file)
+                      ? <img src={`http://localhost:5500${msg.file}`} alt="shared" className="chat-image" />
+                      : <a href={`http://localhost:5500${msg.file}`} target="_blank" rel="noopener noreferrer">{msg.file.split('/').pop()}</a>}
+                  </div>
+                )}
+                <span className='time'>{formatTime(msg.message_time)}</span>
+              </div>
+            </div>
+          ))}
         </div>
+
+        <div className="emoji">{!emoji && <EmojiPicker className='picker' onEmojiClick={handleEmoji} />}</div>
+
         {plusDropdown && (
           <div className="plusDropdown">
             <div className="menuItem" onClick={() => handleClick(fileInputRefDocument)}>
               <FontAwesomeIcon icon={faFile} style={{ color: "#B197FC" }} />
-              <input
-                type='file'
-                ref={fileInputRefDocument}
-                className='fileInput'
-                onChange={(event) => handleFileChange(event)}
-                multiple
-              />
-              <p>Document</p>
+              <input type='file' ref={fileInputRefDocument} className='fileInput' onChange={handleFileChange} /><p>Document</p>
             </div>
             <div className="menuItem" onClick={() => handleClick(fileInputRefPhoto)}>
               <FontAwesomeIcon icon={faPhotoFilm} style={{ color: "#74C0FC" }} />
-              <input
-                type='file'
-                ref={fileInputRefPhoto}
-                className='fileInput'
-                onChange={(event) => handleFileChange(event)}
-                multiple
-              />
-              <p>Photo/Video</p>
+              <input type='file' ref={fileInputRefPhoto} className='fileInput' accept="image/*,video/*" onChange={handleFileChange} /><p>Photo/Video</p>
             </div>
-            <div className="menuItem" onClick={() => setShowCamera(true)}>
-              <FontAwesomeIcon icon={faCamera} style={{ color: "#ff2483" }} onClick={() => startCamera()} />
-              <p>Camera</p>
+            <div className="menuItem" onClick={() => { startCamera(); setShowCamera(true); }}>
+              <FontAwesomeIcon icon={faCamera} style={{ color: "#ff2483" }} /><p>Camera</p>
             </div>
           </div>
         )}
 
-
         <div className="bottom">
-          {/* <audio playsInline ref={myAudio} autoPlay />
-          <audio playsInline ref={userAudio} autoPlay /> */}
-          <Smile onClick={() => { setEmoji(!emoji); setPlusDropdown(false) }} />
-          <Plus onClick={() => { setPlusDropdown(!plusDropdown); setEmoji(true) }} />
-          <input
-            type='text'
-            value={text}
-            className='msgInput'
-            placeholder='Write your message..'
-            onClick={() => { setIsTyping(true); setPlusDropdown(false) }}
+          <Smile onClick={() => { setEmoji(!emoji); setPlusDropdown(false); }} />
+          <Plus  onClick={() => { setPlusDropdown(!plusDropdown); setEmoji(true); }} />
+          <input type='text' value={text} className='msgInput' placeholder='Write your message..'
+            onClick={() => { setIsTyping(true); setPlusDropdown(false); }}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, sendMessage)}
+            onKeyDown={(e) => handleKeyDown(e, () => sendMessage())}
           />
-          {isTyping ? <Send onClick={sendMessage} /> : <Mic />}
+          {isTyping || text ? <Send onClick={() => sendMessage()} /> : <Mic />}
         </div>
       </div>
-    ) :
+    ) : (
       <div className='other'>
         <img src={img} className='chat-inner-img' alt='encryption' />
-        <div className="details">
-          <Lock />
-          <p> Your personal messages are end-to-end encrypted </p>
-        </div>
+        <div className="details"><Lock /><p>Your personal messages are end-to-end encrypted</p></div>
       </div>
+    )
   );
+};
+
+const S = {
+  audioOverlay: { position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(18,140,126,0.95)', zIndex:200, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, color:'#fff' },
+  videoOverlay: { position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'#1a1a2e', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center' },
+  remoteVideo:  { width:'100%', height:'100%', objectFit:'cover' },
+  localVideo:   { position:'absolute', bottom:80, right:16, width:140, height:100, borderRadius:10, objectFit:'cover', border:'2px solid rgba(255,255,255,0.8)', backgroundColor:'#000', zIndex:10 },
+  videoControls:{ position:'absolute', bottom:0, left:0, right:0, display:'flex', flexDirection:'column', alignItems:'center', paddingBottom:20, gap:6, background:'linear-gradient(transparent,rgba(0,0,0,0.75))', zIndex:10 },
+  callName:     { fontSize:22, fontWeight:600, margin:0, color:'#fff' },
+  callSubtext:  { fontSize:14, opacity:0.8, margin:0, color:'#fff' },
+  endBtn:       { marginTop:10, display:'flex', alignItems:'center', gap:8, background:'#e53935', color:'#fff', border:'none', borderRadius:24, padding:'10px 28px', fontSize:15, fontWeight:600, cursor:'pointer' },
 };
 
 export default ChatsInnerContent;
