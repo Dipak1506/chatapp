@@ -2,11 +2,8 @@ var express = require('express');
 var router = express.Router();
 const { Client } = require('pg')
 const connection = new Client({
-    host: "localhost",
-    user: "root",
-    port: 5432,
-    password: "root",
-    database: "db",
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
 })
 
 connection.connect(function (e) {

@@ -97,7 +97,8 @@ const SideContent = (props) => {
                 </div>
             ) : <SidebarChats
                 user={props.user}
-                setRoom={props.setRoom}
+                switchRoom={props.switchRoom}
+                // setRoom={props.setRoom}
                 userData={props.userData}
                 userId={props.userId}
                 setSelectedUser={props.setSelectedUser}

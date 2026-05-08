@@ -16,7 +16,7 @@ function App() {
 
   const getUser = async () => {
     try {
-      const url = "http://localhost:55000/auth/login/success";
+      const url = `${process.env.REACT_APP_API_URL}/auth/login/success`;
       const { data } = await axios.get(url, { withCredentials: true });
       setUser(data.user.displayName);
       setIsLogIn(true);
@@ -58,7 +58,7 @@ function App() {
                   setRoom={setRoom}
                   userId={userId}
                   setUserId={setUserId}
-                   />}>
+                />}>
             </Route>
             <Route
               path='/register'

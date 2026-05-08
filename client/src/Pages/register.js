@@ -84,7 +84,7 @@ const Register = () => {
     };
 
     const google = () => {
-        window.open("http://localhost:55000/auth/google", "_self");
+        window.open("http://localhost:5500/auth/google", "_self");
     };
 
 

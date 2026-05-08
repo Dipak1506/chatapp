@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import "../css/chatInner.css";
 import { Info, Lock, Mic, Phone, PhoneOff, Plus, Send, Smile, Video, VideoOff } from 'react-feather';
@@ -21,49 +22,42 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
   const img = require("../Assets/wa669aeJeom.png");
   const socket = useSocket();
 
-  const [isTyping, setIsTyping]     = useState(false);
-  const [emoji, setEmoji]           = useState(true);
-  const [text, setText]             = useState("");
+  const [isTyping, setIsTyping]         = useState(false);
+  const [emoji, setEmoji]               = useState(true);
+  const [text, setText]                 = useState("");
   const [plusDropdown, setPlusDropdown] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
-  const [image, setImage]           = useState(null);
+  const [showCamera, setShowCamera]     = useState(false);
+  const [image, setImage]               = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [changeName, setChangename] = useState(false);
+  const [changeName, setChangename]     = useState(false);
   const [newGroupname, setNewgroupName] = useState("");
 
-  // ── Call state ────────────────────────────────────────────
   const [callStatus, setCallStatus] = useState(CALL_STATUS.IDLE);
-  const [callType, setCallType]     = useState('audio');   // ← NEW 'audio'|'video'
+  const [callType, setCallType]     = useState('audio');
   const [stream, setStream]         = useState(null);
   const [callerInfo, setCallerInfo] = useState(null);
 
-  const myAudio      = useRef();   // hidden audio
-  const userAudio    = useRef();   // remote audio
-  const myVideo      = useRef();   // ← NEW local video preview
-  const remoteVideo  = useRef();   // ← NEW remote video stream
+  const myAudio       = useRef();
+  const userAudio     = useRef();
+  const myVideo       = useRef();
+  const remoteVideo   = useRef();
   const connectionRef = useRef();
-  const streamRef    = useRef(null);
+  const streamRef     = useRef(null);
 
   const fileInputRefDocument = useRef(null);
   const fileInputRefPhoto    = useRef(null);
-  const videoRef             = useRef(null); // camera-capture
+  const videoRef             = useRef(null);
 
-  // Register socket
   useEffect(() => {
     if (userId) socket.emit('registerUser', userId);
   }, [userId, socket]);
 
-  // Acquire mic + bind call event handlers
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: false, audio: true })
       .then((s) => { setStream(s); streamRef.current = s; if (myAudio.current) myAudio.current.srcObject = s; })
       .catch((err) => console.warn("Mic access denied:", err.message));
 
-    const handleIncomingCall = ({ signal, from, callerName, callType: ct }) => {
-      setCallerInfo({ signal, from, callerName, callType: ct || 'audio' });
-      setCallType(ct || 'audio');
-      setCallStatus(CALL_STATUS.INCOMING);
-    };
+    const handleIncomingCall    = ({ signal, from, callerName, callType: ct }) => { setCallerInfo({ signal, from, callerName, callType: ct || 'audio' }); setCallType(ct || 'audio'); setCallStatus(CALL_STATUS.INCOMING); };
     const handleCallAccepted    = (signal) => { setCallStatus(CALL_STATUS.IN_CALL); if (connectionRef.current) connectionRef.current.signal(signal); };
     const handleCallRejected    = () => { toast.info("Call was declined."); cleanupCall(); };
     const handleCallEnded       = () => { toast.info("Call ended."); cleanupCall(); };
@@ -84,22 +78,26 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
     };
   }, [socket]);
 
-  // Bind local stream to the <video> PiP once video call starts
-  useEffect(() => {                                         // ← NEW
+  useEffect(() => {
     if (callType === 'video' && streamRef.current && myVideo.current) {
       myVideo.current.srcObject = streamRef.current;
     }
   }, [callType, callStatus]);
 
-  // Join room
   useEffect(() => {
     if (room) socket.emit('joinRoom', room);
-    const handleMessage = (msg) => setMessages((prev) => [...prev, msg]);
+    const handleMessage = (msg) => {
+      if (msg.room && msg.room !== room) return;
+      setMessages((prev) => [...prev, msg]);
+    };
     socket.on('receiveMessage', handleMessage);
-    return () => socket.off('receiveMessage', handleMessage);
+    return () => {
+      if (room) socket.emit('leaveRoom', room);
+      socket.off('receiveMessage', handleMessage);
+    };
   }, [room, socket]);
 
-  // ── Call helpers ─────────────────────────────────────────
+  // ── Call helpers ──────────────────────────────────────────────────────────
   const cleanupCall = () => {
     if (connectionRef.current) { connectionRef.current.destroy(); connectionRef.current = null; }
     if (streamRef.current) streamRef.current.getVideoTracks().forEach(t => t.stop());
@@ -109,7 +107,7 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
     setCallStatus(CALL_STATUS.IDLE); setCallerInfo(null); setCallType('audio');
   };
 
-  const getMediaStream = async (type) => {           // ← NEW helper
+  const getMediaStream = async (type) => {
     const constraints = type === 'video'
       ? { audio: true, video: { width: 640, height: 480 } }
       : { audio: true, video: false };
@@ -118,7 +116,13 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
     return s;
   };
 
-  const callUser = async (type = 'audio') => {       // ← CHANGED: accepts type
+  const callUser = async (type = 'audio') => {
+   
+    if (isgroup) {
+      toast.info("Calls are only available in direct messages.");
+      return;
+    }
+
     if (!receiverId) return;
     setCallType(type);
     setCallStatus(CALL_STATUS.CALLING);
@@ -131,9 +135,8 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
     }
 
     const peer = new Peer({ initiator: true, trickle: false, stream: activeStream });
-
     peer.on('signal', (data) => {
-      socket.emit('callUser', { userToCall: receiverId, signalData: data, from: userId, callerName: user, callType: type }); // ← callType forwarded
+      socket.emit('callUser', { userToCall: receiverId, signalData: data, from: userId, callerName: user, callType: type });
     });
     peer.on('stream', (remoteStream) => {
       if (type === 'video' && remoteVideo.current) remoteVideo.current.srcObject = remoteStream;
@@ -162,26 +165,31 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
     connectionRef.current = peer;
   };
 
-  const rejectCall  = () => { socket.emit('rejectCall', { to: callerInfo.from }); cleanupCall(); };
-  const endCall     = () => { socket.emit('endCall', { to: callerInfo ? callerInfo.from : receiverId }); cleanupCall(); toast.info("Call ended."); };
-  const cancelCall  = () => { socket.emit('endCall', { to: receiverId }); cleanupCall(); };
+  const rejectCall = () => { socket.emit('rejectCall', { to: callerInfo.from }); cleanupCall(); };
+  const endCall    = () => { socket.emit('endCall', { to: callerInfo ? callerInfo.from : receiverId }); cleanupCall(); toast.info("Call ended."); };
+  const cancelCall = () => { socket.emit('endCall', { to: receiverId }); cleanupCall(); };
 
-  // ── Messaging (unchanged) ─────────────────────────────────
+  // ── Messaging ─────────────────────────────────────────────────────────────
   const sendMessage = async (fileUrl = null) => {
     const messageContent = fileUrl || text.trim();
     if (!messageContent) return;
     if (!fileUrl) { setText(""); setIsTyping(false); }
     setSelectedFile(null);
     try {
-      const response = await apiConfig.post('/savemessages', { sender_id: userId, receiver_id: receiverId, room_id: roomId, messages: messageContent, is_read: false });
+      const response = await apiConfig.post('/savemessages', {
+        sender_id: userId, receiver_id: receiverId, room_id: roomId,
+        messages: messageContent, is_read: false,
+      });
       const message_time = response.data.message_time;
-      const socketMessage = fileUrl ? { user, text: null, file: fileUrl, message_time } : { user, text, file: null, message_time };
+      const socketMessage = fileUrl
+        ? { user, text: null, file: fileUrl, message_time, room }
+        : { user, text, file: null, message_time, room };
       socket.emit('sendMessage', { room, message: socketMessage });
     } catch (error) { console.error('Error saving message:', error); }
   };
 
-  const handleEmoji = (e) => setText((prev) => prev + e.emoji);
-  const handleClick = (ref) => { if (ref.current) ref.current.click(); };
+  const handleEmoji      = (e) => setText((prev) => prev + e.emoji);
+  const handleClick      = (ref) => { if (ref.current) ref.current.click(); };
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -207,7 +215,8 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
   const capturePhoto = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth; canvas.height = videoRef.current.videoHeight;
+      canvas.width  = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
       canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
       setImage(canvas.toDataURL('image/jpeg')); setShowCamera(false);
     }
@@ -217,16 +226,25 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
   const handleKeyDown = (e, cb) => { if (e.key === 'Enter') cb(); };
   const updateName = () => {
     apiConfig.get("/updatename", { params: { room_id: roomId, new_group_name: newGroupname } })
-      .then(res => { if (res.data.data.rowCount > 0) { onGroupNameUpdate(newGroupname); toast.success("Group name changed"); setChangename(false); setNewgroupName(""); } })
+      .then(res => {
+        if (res.data.data.rowCount > 0) {
+          onGroupNameUpdate(newGroupname);
+          toast.success("Group name changed");
+          setChangename(false); setNewgroupName("");
+        }
+      })
       .catch(err => console.error("Error updating group name:", err));
   };
 
-  // ── Render ────────────────────────────────────────────────
+  
+  const callsAllowed = !isgroup && callStatus === CALL_STATUS.IDLE;
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     selectedUser ? (
       <div className='chatInner'>
-        <audio ref={myAudio} autoPlay muted style={{ display: 'none' }} />
-        <audio ref={userAudio} autoPlay style={{ display: 'none' }} />
+        <audio ref={myAudio}   autoPlay muted style={{ display: 'none' }} />
+        <audio ref={userAudio} autoPlay       style={{ display: 'none' }} />
 
         {/* Incoming call banner */}
         {callStatus === CALL_STATUS.INCOMING && callerInfo && (
@@ -277,8 +295,17 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
             </div>
           </div>
           <div className="icons">
-            <Phone  title="Audio Call" style={{ cursor: 'pointer', color: callStatus !== CALL_STATUS.IDLE ? '#25D366' : undefined }} onClick={() => callStatus === CALL_STATUS.IDLE && callUser('audio')} />
-            <Video  title="Video Call" style={{ cursor: 'pointer', color: callStatus !== CALL_STATUS.IDLE ? '#25D366' : undefined }} onClick={() => callStatus === CALL_STATUS.IDLE && callUser('video')} />
+           
+            <Phone
+              title={isgroup ? "Calls not available in groups" : "Audio Call"}
+              style={callsAllowed ? S.callIconActive : S.callIconDisabled}
+              onClick={() => callsAllowed && callUser('audio')}
+            />
+            <Video
+              title={isgroup ? "Calls not available in groups" : "Video Call"}
+              style={callsAllowed ? S.callIconActive : S.callIconDisabled}
+              onClick={() => callsAllowed && callUser('video')}
+            />
             <Info />
           </div>
         </div>
@@ -331,7 +358,8 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
         <div className="bottom">
           <Smile onClick={() => { setEmoji(!emoji); setPlusDropdown(false); }} />
           <Plus  onClick={() => { setPlusDropdown(!plusDropdown); setEmoji(true); }} />
-          <input type='text' value={text} className='msgInput' placeholder='Write your message..'
+          <input
+            type='text' value={text} className='msgInput' placeholder='Write your message..'
             onClick={() => { setIsTyping(true); setPlusDropdown(false); }}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => handleKeyDown(e, () => sendMessage())}
@@ -349,14 +377,17 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
 };
 
 const S = {
-  audioOverlay: { position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(18,140,126,0.95)', zIndex:200, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, color:'#fff' },
-  videoOverlay: { position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'#1a1a2e', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center' },
-  remoteVideo:  { width:'100%', height:'100%', objectFit:'cover' },
-  localVideo:   { position:'absolute', bottom:80, right:16, width:140, height:100, borderRadius:10, objectFit:'cover', border:'2px solid rgba(255,255,255,0.8)', backgroundColor:'#000', zIndex:10 },
-  videoControls:{ position:'absolute', bottom:0, left:0, right:0, display:'flex', flexDirection:'column', alignItems:'center', paddingBottom:20, gap:6, background:'linear-gradient(transparent,rgba(0,0,0,0.75))', zIndex:10 },
-  callName:     { fontSize:22, fontWeight:600, margin:0, color:'#fff' },
-  callSubtext:  { fontSize:14, opacity:0.8, margin:0, color:'#fff' },
-  endBtn:       { marginTop:10, display:'flex', alignItems:'center', gap:8, background:'#e53935', color:'#fff', border:'none', borderRadius:24, padding:'10px 28px', fontSize:15, fontWeight:600, cursor:'pointer' },
+  audioOverlay:    { position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(18,140,126,0.95)', zIndex:200, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, color:'#fff' },
+  videoOverlay:    { position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'#1a1a2e', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center' },
+  remoteVideo:     { width:'100%', height:'100%', objectFit:'cover' },
+  localVideo:      { position:'absolute', bottom:80, right:16, width:140, height:100, borderRadius:10, objectFit:'cover', border:'2px solid rgba(255,255,255,0.8)', backgroundColor:'#000', zIndex:10 },
+  videoControls:   { position:'absolute', bottom:0, left:0, right:0, display:'flex', flexDirection:'column', alignItems:'center', paddingBottom:20, gap:6, background:'linear-gradient(transparent,rgba(0,0,0,0.75))', zIndex:10 },
+  callName:        { fontSize:22, fontWeight:600, margin:0, color:'#fff' },
+  callSubtext:     { fontSize:14, opacity:0.8, margin:0, color:'#fff' },
+  endBtn:          { marginTop:10, display:'flex', alignItems:'center', gap:8, background:'#e53935', color:'#fff', border:'none', borderRadius:24, padding:'10px 28px', fontSize:15, fontWeight:600, cursor:'pointer' },
+  // Call icon styles — two states so logic and appearance share one source of truth
+  callIconActive:  { cursor:'pointer' },
+  callIconDisabled:{ opacity:0.35, cursor:'not-allowed' },
 };
 
 export default ChatsInnerContent;
