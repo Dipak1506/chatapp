@@ -19,7 +19,6 @@ const Chats = (props) => {
 
   const socket = useSocket();
 
-  // BUG FIX: extracted so it can be called after group creation too
   const fetchGroups = useCallback(async () => {
     try {
       const response = await apiConfig.get("getGroupChats");
@@ -53,26 +52,27 @@ const Chats = (props) => {
       .catch(error => console.error('Error fetching messages:', error));
   }, [receiverId, props.userId]);
 
+  const { userId } = props;
+
   useEffect(() => {
     apiConfig.get('/getusers')
       .then(response => {
         if (response.data && Array.isArray(response.data.data)) {
-          const filteredUsers = response.data.data.filter(user => user.id !== props.userId);
+          const filteredUsers = response.data.data.filter(user => user.id !== userId);
           setUserData(filteredUsers);
         } else {
           setUserData([]);
         }
       })
       .catch(error => console.error('Error fetching users:', error));
-  }, [props.userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const handleGroupChatCreation = async (selectedUsers) => {
     const roomName = selectedUsers.map(user => user.username).sort().join('-');
 
-    // BUG FIX: was "joinRoom " (trailing space)
     socket.emit("joinRoom", roomName);
     props.setRoom(roomName);
-    setReceiverId(null); // groups don't use a single receiverId
+    setReceiverId(null);
     const isGroup = true;
 
     try {
@@ -88,9 +88,6 @@ const Chats = (props) => {
         setRoomId(newRoomId);
         setIsGroupChat(true);
 
-        // BUG FIX: members must be JSON-serialised — passing raw objects as query
-        // params makes axios encode them as members[0][id]=…, which the backend
-        // receives as garbage and stores incorrectly.
         await apiConfig.get("/createGroups", {
           params: {
             room_id: newRoomId,
@@ -99,10 +96,7 @@ const Chats = (props) => {
           }
         });
 
-        // BUG FIX: refresh the groups list so the new group appears immediately
         await fetchGroups();
-
-        // Open the new group chat right away
         setSelectedUser(roomName);
         setIsGroup(true);
       } else {
@@ -169,10 +163,3 @@ const Chats = (props) => {
 };
 
 export default Chats;
- 
-
-
-
-
-
-

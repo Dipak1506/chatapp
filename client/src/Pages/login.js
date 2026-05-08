@@ -15,6 +15,7 @@ const Login = (props) => {
   const navigate = useNavigate();
   const socket = useSocket();
 
+  const [usernameError] = useState('');
   const [password, setPassword] = useState('');
   const [passError, setPassError] = useState('');
   const [signInError, setSignInError] = useState('');

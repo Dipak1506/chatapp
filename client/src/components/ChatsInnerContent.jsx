@@ -26,16 +26,12 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
   const [text, setText]             = useState("");
   const [plusDropdown, setPlusDropdown] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  // image and selectedFile used only for upload flow
-  const [image, setImage]           = useState(null); // eslint-disable-line no-unused-vars
-  const [selectedFile, setSelectedFile] = useState(null); // eslint-disable-line no-unused-vars
   const [changeName, setChangename] = useState(false);
   const [newGroupname, setNewgroupName] = useState("");
 
   // ── Call state ────────────────────────────────────────────
   const [callStatus, setCallStatus] = useState(CALL_STATUS.IDLE);
   const [callType, setCallType]     = useState('audio');
-  const [stream, setStream]         = useState(null); // eslint-disable-line no-unused-vars
   const [callerInfo, setCallerInfo] = useState(null);
 
   const myAudio      = useRef();   // hidden audio
@@ -57,7 +53,7 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
   // Acquire mic + bind call event handlers
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: false, audio: true })
-      .then((s) => { setStream(s); streamRef.current = s; if (myAudio.current) myAudio.current.srcObject = s; })
+      .then((s) => { streamRef.current = s; if (myAudio.current) myAudio.current.srcObject = s; })
       .catch((err) => console.warn("Mic access denied:", err.message));
 
     const handleIncomingCall = ({ signal, from, callerName, callType: ct }) => {
@@ -115,7 +111,7 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
       ? { audio: true, video: { width: 640, height: 480 } }
       : { audio: true, video: false };
     const s = await navigator.mediaDevices.getUserMedia(constraints);
-    setStream(s); streamRef.current = s;
+    streamRef.current = s;
     return s;
   };
 
@@ -172,7 +168,6 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
     const messageContent = fileUrl || text.trim();
     if (!messageContent) return;
     if (!fileUrl) { setText(""); setIsTyping(false); }
-    setSelectedFile(null);
     try {
       const response = await apiConfig.post('/savemessages', { sender_id: userId, receiver_id: receiverId, room_id: roomId, messages: messageContent, is_read: false });
       const message_time = response.data.message_time;
@@ -186,7 +181,6 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    setSelectedFile(file);
     const formData = new FormData();
     formData.append('image', file);
     apiConfig.post('/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
@@ -210,7 +204,7 @@ const ChatsInnerContent = ({ user, room, selectedUser, userId, receiverId, roomI
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth; canvas.height = videoRef.current.videoHeight;
       canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
-      setImage(canvas.toDataURL('image/jpeg')); setShowCamera(false);
+      setShowCamera(false);
     }
   };
 
