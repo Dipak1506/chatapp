@@ -1,6 +1,5 @@
 import '../css/register.css';
 import Google from "../img/google.png";
-import Facebook from "../img/facebook.png";
 import { useState } from "react";
 import apiConfig from "../utils/apiConfig";
 import { checkEmail, checkUsername } from "../utils/comman";
@@ -84,7 +83,7 @@ const Register = () => {
     };
 
     const google = () => {
-        window.open("http://localhost:5500/auth/google", "_self");
+        window.open("http://localhost:55000/auth/google", "_self");
     };
 
 

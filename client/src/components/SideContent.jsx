@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { MessageSquare, MoreVertical, Search, Users } from 'react-feather';
 import '../css/side-content.css';
 import 'bootstrap/dist/css/bootstrap.css'
 import AvatarComponent from '../utils/Avatar';
 import SidebarChats from './SidebarChats';
-import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import apiConfig from '../utils/apiConfig';
 
 
@@ -97,8 +96,7 @@ const SideContent = (props) => {
                 </div>
             ) : <SidebarChats
                 user={props.user}
-                switchRoom={props.switchRoom}
-                // setRoom={props.setRoom}
+                setRoom={props.setRoom}
                 userData={props.userData}
                 userId={props.userId}
                 setSelectedUser={props.setSelectedUser}
