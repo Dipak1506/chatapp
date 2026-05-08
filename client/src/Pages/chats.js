@@ -19,6 +19,12 @@ const Chats = (props) => {
 
   const socket = useSocket();
 
+  const switchRoom = useCallback((newRoom) => {
+  if (props.room) socket.emit('leaveRoom', props.room);
+  socket.emit('joinRoom', newRoom);
+  props.setRoom(newRoom);
+}, [props.room, socket, props.setRoom]);
+
   const fetchGroups = useCallback(async () => {
     try {
       const response = await apiConfig.get("getGroupChats");
@@ -138,6 +144,7 @@ const Chats = (props) => {
             isGroupChat={isGroupChat}
             groups={groups}
             setIsGroup={setIsGroup}
+            switchRoom={switchRoom}
           />
         </div>
         <div className="col-md-9">
