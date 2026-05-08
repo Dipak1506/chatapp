@@ -46,10 +46,10 @@ const Login = (props) => {
       await apiConfig.post('/signin',
         
         {
-          
+          params: {
             username: props.user,
             password: password,
-          
+          }
         })
         .then((response) => {
           console.log('user',response);

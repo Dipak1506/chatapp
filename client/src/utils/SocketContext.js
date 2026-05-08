@@ -8,6 +8,9 @@ export const SocketProvider = ({ children }) => {
     const [socket] = useState(() => io(process.env.REACT_APP_API_URL || 'http://localhost:5500', {
         withCredentials: true,
         reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+
     }));
 
     useEffect(() => {
