@@ -1,30 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const connection = require('./database');
-// router.use(express.json);
+const bcrypt = require('bcrypt');
 
-router.get("/", async (req, res) => {
+router.post("/", async (req, res) => {
+    const { name, email, number, password, username } = req.body;
 
-    const name = req.query.name;
-    const email = req.query.email;
-    const number = req.query.number;
-    const password = req.query.password;
-    const username = req.query.username;
+    if (!name || !email || !number || !password || !username) {
+        return res.status(400).send({ status: 400, msg: "All fields are required" });
+    }
 
     try {
-        let insertQuery = "insert into userdata(name, email, contactno, password, username) values('" + name + "','" + email + "','" + number + "','" + password + "','" + username +"')"
-        connection.query(insertQuery, (err, result) => {
-            if (!err) {
-                res.send('Insertion was successful')
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const insertQuery = "INSERT INTO userdata(name, email, contactno, password, username) VALUES($1,$2,$3,$4,$5)";
+        connection.query(insertQuery, [name, email, number, hashedPassword, username], (err) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).send({ status: 500, msg: "Username or email already exists" });
             }
-            else {
-                res.send('error');
-            }
-        })
+            res.send({ status: 200, msg: "Successfully registered" });
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ status: 500, msg: "Server error" });
     }
-    catch (error) {
-        res.send({ status: "error" });
-    };
-})
+});
 
 module.exports = router;

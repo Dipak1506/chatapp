@@ -64,16 +64,13 @@ const Register = () => {
         }
         else {
             console.log("react-data : " + name + email + number + password + username);
-            await apiConfig.get('/signup',
-                {
-                    params: {
-                        name: name,
-                        email: email,
-                        number: number,
-                        password: password,
-                        username: username,
-                    }
-                })
+            await apiConfig.post('/signup', {
+                name,
+                email,
+                number,
+                password,
+                username,
+            })
                 .then((response) => {
                     console.log(response);
                     setSignupError("succsesfully registered");

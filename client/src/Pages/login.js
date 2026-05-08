@@ -43,26 +43,24 @@ const Login = (props) => {
     else {
     
       
-      await apiConfig.get('/signin',
+      await apiConfig.post('/signin',
         
         {
-          params: {
+          
             username: props.user,
             password: password,
-          }
+          
         })
         .then((response) => {
           console.log('user',response);
           if (response.data.status === 200) {
             setSignInError(response.data.msg);
             props.setIsLogIn(true);
-           // console.log(response.data.data[0].username,response.data.data[0].id);
             sessionStorage.setItem('username',response.data.data[0].username);
             sessionStorage.setItem('token', response.data.token);
            toast.success("Hello...  " + response.data.data[0].username);
            props.setUserId(response.data.data[0].id)
 
-          //  socket.emit('join_room', { username: props.user, room: props.user  })
           socket.emit('joinRoom', props.user);
           } else if (response.data.status === 201) {
             setSignInError(response.data.msg);
@@ -72,9 +70,6 @@ const Login = (props) => {
         .catch((err) => {
           console.log(err);
         })
-      //setSignInError("loggedin successfully");
-      
-      
     }
   };
 

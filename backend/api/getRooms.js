@@ -10,7 +10,7 @@ router.get('/', (req, res) => {
             if(err){
                 res.send({status: 201, msg: "Error getting rooms"});
             } else {
-                res.send({status: 200, data: data});
+                res.send({status: 200, data: data.rows});
             }
         })
     }
