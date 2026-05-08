@@ -36,15 +36,17 @@ passport.deserializeUser(async (id, done) => {
 passport.use(
     new GoogleStrategy(
         {
-            clientID:     process.env.GOOGLE_CLIENT_ID,      
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET, 
-            callbackURL:  "http://localhost:5500/auth/google/callback",
+            clientID: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            callbackURL: process.env.REACT_APP_API_URL
+                ? `${process.env.REACT_APP_API_URL}/auth/google/callback`
+                : "http://localhost:5500/auth/google/callback",
         },
         async (_accessToken, _refreshToken, profile, done) => {
             try {
-                const email       = profile.emails[0].value;
+                const email = profile.emails[0].value;
                 const displayName = profile.displayName;
-                const googleId    = profile.id;
+                const googleId = profile.id;
 
                 // 1. Check if the user already exists (by google_id OR email)
                 const existing = await connection.query(
@@ -64,7 +66,7 @@ passport.use(
                     return done(null, user);
                 }
 
-                
+
                 const username = displayName.toLowerCase().replace(/\s+/g, "_");
 
                 const insert = await connection.query(

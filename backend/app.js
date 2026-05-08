@@ -20,7 +20,9 @@ app.use(cors({
       process.env.CLIENT_URL,
     ].filter(Boolean);
 
-    if (!origin || allowedOrigins.includes(origin)) {
+   const isVercelPreview = origin && /https:\/\/chatapp-.*\.vercel\.app$/.test(origin);
+
+    if (!origin || allowedOrigins.includes(origin) || isVercelPreview) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
