@@ -107,6 +107,7 @@ const SideContent = (props) => {
                 receiverId={props.receiverId}
                 groups={props.groups}
                 setIsGroup={props.setIsGroup}
+                switchRoom={props.switchRoom}
             />}
 
         </div >
