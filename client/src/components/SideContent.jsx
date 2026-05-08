@@ -43,9 +43,10 @@ const SideContent = (props) => {
     const logOut = async () => {
 
         await apiConfig.get("/auth/logout");
+        sessionStorage.clear();
         props.setIsLogIn(false);
         window.location.reload();
-        sessionStorage.clear();
+        
     };
 
     return (
