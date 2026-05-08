@@ -64,7 +64,7 @@ const Register = () => {
         }
         else {
             console.log("react-data : " + name + email + number + password + username);
-           await apiConfig.post('/signup',
+           await apiConfig.post('/signup',null,
                 {
                     params: {
                         name: name,
