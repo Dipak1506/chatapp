@@ -32,17 +32,16 @@ router.get(
 );
 
 router.get("/logout", (req, res) => {
-	req.logout(function (err) {
-		if (err) { return res.send({ error: true, message: err.message }); };
-		req.session.destroy((err) => {
-			if (err) {
-				console.log(err);
-			}
-		});
-		res.clearCookie('connect.sid');
-		res.redirect('http://localhost:3000/');
-	});
-
+    req.logout(function (err) {
+        if (err) {
+            return res.json({ error: true, message: err.message });
+        }
+        req.session.destroy((err) => {
+            if (err) console.log(err);
+        });
+        res.clearCookie('connect.sid');
+        res.json({ status: 200, message: "Logged out successfully" });
+    });
 });
 
 module.exports = router;
