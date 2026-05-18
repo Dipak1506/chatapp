@@ -19,11 +19,11 @@ const Chats = (props) => {
 
   const socket = useSocket();
 
-  const switchRoom = useCallback((newRoom) => {
-  if (props.room) socket.emit('leaveRoom', props.room);
-  socket.emit('joinRoom', newRoom);
-  props.setRoom(newRoom);
-}, [props.room, socket, props.setRoom]);
+  const switchRoom = (newRoom) => {
+    if (props.room) socket.emit('leaveRoom', props.room);
+    socket.emit('joinRoom', newRoom);
+    props.setRoom(newRoom);
+  };
 
   const fetchGroups = useCallback(async () => {
     try {
